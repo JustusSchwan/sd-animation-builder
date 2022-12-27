@@ -119,23 +119,49 @@ def main():
         timed_prompt(float(timestamp), str(text))
         for timestamp, text in file_contents["seed"]])
 
-    frames_per_second = 1
-    start = 0
+    negative_prompt = file_contents["negative_prompt"]
+
+    frames_per_second = 1/10
+    deforum_sampling_interval_seconds = 5
+    start = 260
     end = 380
 
-    def print_time(time: float):
-        prompt = combine_weighted_prompts([elem.prompt_at(time) for elem in prompt_elements])
+    def prompt_at(time: float):
+        return combine_weighted_prompts([elem.prompt_at(time) for elem in prompt_elements])
+
+    def seed_at(time: float):
         f_seeds = seed.prompt_at(time)
         seed_args = f"--seed {f_seeds[0].text}"
         if len(f_seeds) == 2:
             seed_args += f" --subseed {f_seeds[1].text} --subseed_strength {round(f_seeds[1].weight, 4)}"
-        print(f"--prompt \"{prompt}\" {seed_args}")
+        return seed_args
+
+    def make_negative_promopt():
+        if len(negative_prompt) > 0:
+            return f" --negative_prompt \"{negative_prompt}\""
+        else:
+            return ""
+
+    def print_time(time: float):
+        print(f"--prompt \"{prompt_at(time)}\"{make_negative_promopt()} {seed_at(time)}")
 
     for f in range(int(start * frames_per_second), int(end * frames_per_second) + 1):
         print_time(float(f) / frames_per_second)
 
     # for p in prompt_elements[1].prompts:
     #     print_time(p.time)
+
+    # for p in seed.prompts:
+    #     print_time(p.time)
+
+    deforum_prompt = {}
+    start_deforum = int(start / deforum_sampling_interval_seconds)
+    for sample in range(start_deforum, int(end / deforum_sampling_interval_seconds) + 1):
+        t = sample * deforum_sampling_interval_seconds
+        t_start = start_deforum * deforum_sampling_interval_seconds
+        f = int((t - t_start) * frames_per_second)
+        deforum_prompt[f"{f}"] = prompt_at(t)
+    # print(json.dumps(deforum_prompt, indent=4))
 
     # for p in seed.prompts:
     #     print_time(p.time)
